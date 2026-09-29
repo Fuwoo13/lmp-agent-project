@@ -32,7 +32,7 @@ function App() {
       {/* 헤더 섹션 */}
       <div style={{ textAlign: 'center', marginBottom: '40px' }}>
         <h1 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '10px' }}>
-          🚀 L.M.P 멀티 에이전트 시스템
+           L.M.P 멀티 에이전트 시스템
         </h1>
         <p style={{ color: '#7f8c8d', fontSize: '16px' }}>
           현장 안전(L.AX) · 설비 진단(M.AX) · 보고서 작성(P.AX)
