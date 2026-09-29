@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-crewai
+crewai[google-genai]
 crewai-tools
 python-dotenv
 requests
