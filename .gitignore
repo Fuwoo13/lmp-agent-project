@@ -1,0 +1,10 @@
+# 환경변수 및 API 키 (절대 업로드 금지!)
+.env
+
+# 파이썬 가상환경 및 캐시 파일
+lmp_env/
+__pycache__/
+*.pyc
+
+# React 노드 모듈 (클라우드에서 자동 설치되므로 제외)
+lmp-frontend/node_modules/
