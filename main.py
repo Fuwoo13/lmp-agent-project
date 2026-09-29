@@ -9,7 +9,6 @@ load_dotenv()
 # ==========================================
 # 1. 에이전트 대화용 LLM (순수 Gemini 네이티브 연결)
 # ==========================================
-# 복잡한 우회 코드 모두 삭제! 정확한 3.5 모델명으로 다이렉트 연결합니다.
 gemini_llm = LLM(
     model="gemini/gemini-3.5-flash",
     api_key=os.environ.get("GEMINI_API_KEY")
@@ -65,8 +64,9 @@ task1 = Task(
     agent=life_agent
 )
 
+# 💡 핵심 변경점: 고정된 텍스트 대신 {sensor_data}라는 구멍(변수)을 뚫어두었습니다.
 task2 = Task(
-    description='작업 중 "CM-100 모터 온도 85도 이상 경고 알림"이 발생했습니다. 반드시 파일 읽기 도구(FileReadTool)를 사용하여 equipment_manual.txt의 내용을 읽어보고, 매뉴얼에 명시된 원인 2가지와 에어건 압력, V벨트 장력 수치 등이 포함된 조치 가이드를 제시하세요.',
+    description='작업 중 "{sensor_data}" 상태가 감지되었습니다. 반드시 파일 읽기 도구(FileReadTool)를 사용하여 equipment_manual.txt의 내용을 읽어보고, 매뉴얼에 명시된 원인 2가지와 에어건 압력, V벨트 장력 수치 등이 포함된 조치 가이드를 제시하세요.',
     expected_output='매뉴얼의 정확한 수치(kgf, bar 등)가 포함된 모터 과열 원인 및 조치 매뉴얼',
     agent=mfg_agent
 )
@@ -88,11 +88,21 @@ crew = Crew(
     max_rpm=3 # API 호출 속도 제한 유지
 )
 
+# 💡 핵심 변경점: 외부(api.py 등)에서 센서 데이터를 집어넣어 실행할 수 있게 함수로 감쌌습니다.
+def run_lmp_crew(sensor_input):
+    """프론트엔드에서 받은 센서 데이터를 멀티 에이전트 파이프라인에 주입하고 실행합니다."""
+    # inputs 딕셔너리를 통해 task2의 {sensor_data}에 값을 주입합니다.
+    result = crew.kickoff(inputs={'sensor_data': sensor_input})
+    return result
+
 if __name__ == "__main__":
-    print("🚀 [최종 네이티브 연결] L.M.P 멀티 에이전트 파이프라인 가동을 시작합니다...\n")
-    result = crew.kickoff()
+    print("🚀 [테스트] L.M.P 멀티 에이전트 파이프라인 가동을 시작합니다...\n")
+    # 터미널에서 단독으로 실행할 때 쓰이는 기본 가짜 데이터입니다.
+    test_sensor_data = "CM-100 모터 온도 85도 이상 경고 (위험 초과)"
+    
+    final_result = run_lmp_crew(test_sensor_data)
     
     print("\n============================================")
     print("🎯 최종 결과물 (매뉴얼 문서 기반 작업 보고서)")
     print("============================================")
-    print(result)
+    print(final_result)

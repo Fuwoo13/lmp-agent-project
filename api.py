@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai.tools import tool # 커스텀 도구 생성용
 from crewai_tools import FileReadTool
+from main import run_lmp_crew
 
 # 환경 변수 로드
 load_dotenv()
@@ -107,13 +108,18 @@ async def run_lmp_pipeline():
     result = await crew.kickoff_async()
     return result.raw
 
-@app.post("/api/generate-report")
-async def generate_report_api():
-    try:
-        report_content = await run_lmp_pipeline()
-        return {"status": "success", "data": report_content}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+@app.post("/generate-report")
+async def generate_report(data: dict):
+    # 1. 프론트엔드에서 보낸 센서 이상 데이터를 받습니다 (없으면 기본값 세팅)
+    sensor_input = data.get("sensor_data", "CM-100 모터 온도 85도 이상 경고 (위험 초과)")
+    
+    # 2. 방금 우리가 만든 똑똑한 멀티 에이전트 뇌(main.py)를 가동합니다.
+    print(f"웹사이트 요청 수신: {sensor_input} -> 에이전트 가동 시작!")
+    result = run_lmp_crew(sensor_input)
+    
+    # 3. AI가 작성한 최종 마크다운 보고서를 프론트엔드로 다시 보내줍니다.
+    # CrewAI의 출력 결과 객체는 문자열로 변환(str)해서 보내야 합니다.
+    return {"report": str(result)}
 
 if __name__ == "__main__":
     import uvicorn
