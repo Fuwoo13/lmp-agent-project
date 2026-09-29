@@ -109,7 +109,7 @@ async def run_lmp_pipeline():
     return result.raw
 
 @app.post("/api/generate-report")
-async def generate_report(data: dict):
+def generate_report(data: dict):
     # 1. 프론트엔드에서 보낸 센서 이상 데이터를 받습니다
     sensor_input = data.get("sensor_data", "CM-100 모터 온도 85도 이상 경고 (위험 초과)")
     
