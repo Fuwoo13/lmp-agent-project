@@ -19,7 +19,7 @@ function App() {
     setLoading(true);
     setReport('');
     try {
-      const response = await fetch('https://lmp-backend-api.onrender.com/generate-report', { // api.py 주소 확인 필요 시 '/api/generate-report'로 원복
+      const response = await fetch('https://lmp-backend-api.onrender.com/api/generate-report', { // api.py 주소 확인 필요 시 '/api/generate-report'로 원복
         method: 'POST',
         headers: {
           'Content-Type': 'application/json', // 💡 JSON 데이터를 보낸다고 명시
