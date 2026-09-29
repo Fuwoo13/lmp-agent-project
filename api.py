@@ -108,9 +108,9 @@ async def run_lmp_pipeline():
     result = await crew.kickoff_async()
     return result.raw
 
-@app.post("/generate-report")
+@app.post("/api/generate-report")
 async def generate_report(data: dict):
-    # 1. 프론트엔드에서 보낸 센서 이상 데이터를 받습니다 (없으면 기본값 세팅)
+    # 1. 프론트엔드에서 보낸 센서 이상 데이터를 받습니다
     sensor_input = data.get("sensor_data", "CM-100 모터 온도 85도 이상 경고 (위험 초과)")
     
     # 2. 방금 우리가 만든 똑똑한 멀티 에이전트 뇌(main.py)를 가동합니다.
@@ -118,7 +118,6 @@ async def generate_report(data: dict):
     result = run_lmp_crew(sensor_input)
     
     # 3. AI가 작성한 최종 마크다운 보고서를 프론트엔드로 다시 보내줍니다.
-    # CrewAI의 출력 결과 객체는 문자열로 변환(str)해서 보내야 합니다.
     return {"report": str(result)}
 
 if __name__ == "__main__":
