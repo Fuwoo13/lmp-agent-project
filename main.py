@@ -36,7 +36,7 @@ life_agent = Agent(
 mfg_agent = Agent(
     role='제조 설비 트러블슈터 (M.AX)',
     goal='설비 매뉴얼 문서를 읽고(Read), 고장 원인을 정확히 진단하여 조치 가이드를 제공합니다.',
-    # 💡 아래 backstory 부분에 "매뉴얼에 없으면 멈춰라"는 강력한 지시를 추가합니다.
+    # 💡 매뉴얼에 없으면 임의 조치를 금지하는 강력한 방어 프롬프트
     backstory='당신은 20년 경력의 공장 설비 마스터입니다. 느낌이나 직감이 아니라, 반드시 제공된 [설비 매뉴얼] 문서를 읽어보고 팩트 기반으로만 해결책을 제시합니다. 만약 발생한 센서 이상 증상이 매뉴얼에 명시되어 있지 않다면, 절대 임의로 원인을 추측하지 말고 "해당 증상은 매뉴얼에 없음. 임의 조치를 엄격히 금지하며 즉시 제조사에 정밀 점검을 요청할 것"이라고 명시해야 합니다.',
     verbose=True,
     allow_delegation=False,
@@ -65,16 +65,20 @@ task1 = Task(
     agent=life_agent
 )
 
-# 💡 핵심 변경점: 고정된 텍스트 대신 {sensor_data}라는 구멍(변수)을 뚫어두었습니다.
+# 💡 고장 시나리오 변수 {sensor_data} 적용
 task2 = Task(
     description='작업 중 "{sensor_data}" 상태가 감지되었습니다. 반드시 파일 읽기 도구(FileReadTool)를 사용하여 equipment_manual.txt의 내용을 읽어보고, 매뉴얼에 명시된 원인 2가지와 에어건 압력, V벨트 장력 수치 등이 포함된 조치 가이드를 제시하세요.',
     expected_output='매뉴얼의 정확한 수치(kgf, bar 등)가 포함된 모터 과열 원인 및 조치 매뉴얼',
     agent=mfg_agent
 )
 
+# 💡 시간과 장소 변수 {current_time}, {current_location} 적용
 task3 = Task(
-    description='task1과 task2의 결과를 종합하여, [작업일시], [특이사항], [조치결과] 양식에 맞춘 오늘의 일일 작업 보고서를 마크다운 형식으로 깔끔하게 작성하세요.',
-    expected_output='마크다운 형식으로 작성된 최종 일일 작업 보고서',
+    description='''task1과 task2의 결과를 종합하여 일일 작업 보고서를 작성하세요.
+    - [작업일시]: {current_time}
+    - [작업장소]: {current_location}
+    위 시간과 장소를 반드시 보고서 최상단에 그대로 명시하고, [특이사항], [조치결과] 양식에 맞춰 마크다운 형식으로 깔끔하게 작성하세요.''',
+    expected_output='작업일시, 작업장소, 특이사항, 조치결과가 포함된 마크다운 일일 작업 보고서',
     agent=process_agent
 )
 
@@ -89,16 +93,8 @@ crew = Crew(
     max_rpm=3 # API 호출 속도 제한 유지
 )
 
-# [수정 후 main.py의 마지막 부분]
+# 💡 프론트엔드에서 받은 3개의 변수를 크루에 전달하는 함수
 def run_lmp_crew(sensor_input, current_time, current_location):
-    # P.AX 요원의 Task에 시간과 장소를 강제로 박아넣습니다.
-    p_ax_task.description = f"""
-    task1과 task2의 결과를 종합하여 일일 작업 보고서를 작성하세요.
-    - [작업일시]: {current_time}
-    - [작업장소]: {current_location}
-    위 시간과 장소를 반드시 보고서 최상단에 명시하고, [특이사항], [조치결과] 양식에 맞춰 마크다운으로 작성하세요.
-    """
-    
     result = crew.kickoff(inputs={
         'sensor_data': sensor_input,
         'current_time': current_time,
@@ -108,10 +104,13 @@ def run_lmp_crew(sensor_input, current_time, current_location):
 
 if __name__ == "__main__":
     print("🚀 [테스트] L.M.P 멀티 에이전트 파이프라인 가동을 시작합니다...\n")
-    # 터미널에서 단독으로 실행할 때 쓰이는 기본 가짜 데이터입니다.
-    test_sensor_data = "CM-100 모터 온도 85도 이상 경고 (위험 초과)"
     
-    final_result = run_lmp_crew(test_sensor_data)
+    # 터미널 로컬 테스트용 가상 데이터
+    test_sensor_data = "CM-100 모터 온도 85도 이상 경고 (위험 초과)"
+    test_time = "2026년 9월 30일 22시 20분"
+    test_location = "창원국가산업단지 (로컬 테스트)"
+    
+    final_result = run_lmp_crew(test_sensor_data, test_time, test_location)
     
     print("\n============================================")
     print("🎯 최종 결과물 (매뉴얼 문서 기반 작업 보고서)")
