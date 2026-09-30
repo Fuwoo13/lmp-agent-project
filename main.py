@@ -89,11 +89,21 @@ crew = Crew(
     max_rpm=3 # API 호출 속도 제한 유지
 )
 
-# 💡 핵심 변경점: 외부(api.py 등)에서 센서 데이터를 집어넣어 실행할 수 있게 함수로 감쌌습니다.
-def run_lmp_crew(sensor_input):
-    """프론트엔드에서 받은 센서 데이터를 멀티 에이전트 파이프라인에 주입하고 실행합니다."""
-    # inputs 딕셔너리를 통해 task2의 {sensor_data}에 값을 주입합니다.
-    result = crew.kickoff(inputs={'sensor_data': sensor_input})
+# [수정 후 main.py의 마지막 부분]
+def run_lmp_crew(sensor_input, current_time, current_location):
+    # P.AX 요원의 Task에 시간과 장소를 강제로 박아넣습니다.
+    p_ax_task.description = f"""
+    task1과 task2의 결과를 종합하여 일일 작업 보고서를 작성하세요.
+    - [작업일시]: {current_time}
+    - [작업장소]: {current_location}
+    위 시간과 장소를 반드시 보고서 최상단에 명시하고, [특이사항], [조치결과] 양식에 맞춰 마크다운으로 작성하세요.
+    """
+    
+    result = crew.kickoff(inputs={
+        'sensor_data': sensor_input,
+        'current_time': current_time,
+        'current_location': current_location
+    })
     return result
 
 if __name__ == "__main__":

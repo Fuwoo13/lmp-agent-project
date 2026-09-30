@@ -38,16 +38,20 @@ init_db() # 서버가 켜질 때 DB 세팅 실행
 # ==========================================
 @app.post("/api/generate-report")
 def generate_report(data: dict):
-    sensor_input = data.get("sensor_data", "CM-100 모터 온도 85도 이상 경고")
-    print(f"웹사이트 요청 수신: {sensor_input} -> 에이전트 가동 시작!")
+    # 프론트엔드에서 보낸 센서 종류, 시간, 장소 데이터를 꺼냅니다.
+    sensor_input = data.get("sensor_data", "CM-100 모터 과열")
+    current_time = data.get("timestamp", "시간 정보 없음")
+    current_location = data.get("location", "창원국가산업단지")
     
-    # 1. AI 보고서 생성
-    result_text = str(run_lmp_crew(sensor_input))
+    print(f"요청 수신: {current_location} / {current_time} / {sensor_input}")
     
-    # 2. DB에 최종 결과 저장
+    # 3개의 데이터를 모두 AI에게 전달합니다.
+    result_text = str(run_lmp_crew(sensor_input, current_time, current_location))
+    
+    # DB 저장 로직 (이전과 동일)
+    import sqlite3
     conn = sqlite3.connect("reports.db")
     c = conn.cursor()
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     c.execute("INSERT INTO reports (created_at, sensor_data, report_content) VALUES (?, ?, ?)", 
               (current_time, sensor_input, result_text))
     conn.commit()
