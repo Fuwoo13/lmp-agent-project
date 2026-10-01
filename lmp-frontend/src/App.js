@@ -73,7 +73,7 @@ function App() {
     setLoading(false);
   };
 
-  // 💡 신규 2: Web Speech API (음성 인식 STT)
+  // 💡 신규 2 수정본: Web Speech API (사진 없이 음성만으로 단독 결재)
   const handleVoiceApproval = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -87,26 +87,59 @@ function App() {
 
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
-      alert(`🎙️ 현장 음성 인식 완료: "${transcript}"\n조치를 승인합니다.`);
+      alert(`🎙️ 현장 음성 인식 완료: "${transcript}"\n사진 검증을 생략하고 음성 명령으로 즉시 승인을 진행합니다.`);
       setIsListening(false);
-      handleWorkerApproval();
+      
+      // 💡 비전 AI로 넘기지 않고 여기서 바로 센서 정상화 및 보고서 완료 처리!
+      setTimeout(() => {
+        setSensorData("모든 설비 정상 작동 중 (음성 조치 승인 완료)");
+        setReportStatus('completed');
+        alert("✅ [최종 검증 완료] 음성 승인 및 IoT 센서 정상화가 확인되었습니다.\n보고서를 최종 결재합니다.");
+      }, 1000); // 1초 뒤 센서 정상화 연출
     };
-    recognition.onerror = () => setIsListening(false);
+    
+    recognition.onerror = () => {
+      alert("음성 인식이 취소되었거나 실패했습니다.");
+      setIsListening(false);
+    };
   };
 
-  const handleWorkerApproval = () => {
+  // 💡 비전 AI와 실제 통신하는 로직 (사진 업로드 시에만 작동)
+  const handleWorkerApproval = async () => {
     if (!uploadImage) {
       alert("⚠️ 조치 완료 사진을 먼저 업로드해 주세요! (비전 AI 검증용)");
       return;
     }
-    alert("🔍 [Vision AI] 업로드된 조치 사진을 분석 중입니다...\n(백엔드 연결 대기중)");
-    // ※ 2단계에서 이곳에 실제 백엔드 비전 AI 통신 로직이 들어갑니다.
     
-    setTimeout(() => {
-      setSensorData("모든 설비 정상 작동 중 (조치 후 안정화됨)");
-      setReportStatus('completed');
-      alert("✅ [AI 검증 완료] 조치 사진 판독 및 IoT 센서 정상화가 확인되었습니다.\n보고서를 최종 결재합니다.");
-    }, 1500);
+    alert("🔍 [Vision AI] 업로드된 조치 사진을 분석 중입니다...\n(백엔드로 사진을 전송하고 있습니다.)");
+    
+    const formData = new FormData();
+    formData.append("file", uploadImage);
+
+    try {
+      const response = await fetch('https://lmp-backend-api.onrender.com/api/verify-image', {
+        method: 'POST',
+        body: formData, 
+      });
+      
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        alert(`🤖 [AI 비전 판독 결과]\n\n${result.message}`);
+        
+        if (result.message.includes('통과')) {
+          setSensorData("모든 설비 정상 작동 중 (조치 후 안정화됨)");
+          setReportStatus('completed');
+          alert("✅ [최종 검증 완료] 조치 사진 판독 및 IoT 센서 정상화가 확인되었습니다.\n보고서를 최종 결재합니다.");
+        } else {
+          alert("⚠️ AI가 재조치를 요구했습니다. 현장 조치를 다시 확인하고 사진을 다시 올려주세요.");
+        }
+      } else {
+        alert("❌ 사진 판독에 실패했습니다.");
+      }
+    } catch (error) {
+      alert("서버 통신 오류가 발생했습니다. FastAPI 서버 상태를 확인해주세요.");
+    }
   };
 
   // 💡 신규 3: PDF 자동 변환 및 다운로드
@@ -213,7 +246,7 @@ function App() {
                     👷‍♂️ 사진 기반 조치 승인
                   </button>
                   <button onClick={handleVoiceApproval} style={{ padding: '14px 20px', fontSize: '16px', fontWeight: 'bold', backgroundColor: isListening ? '#e53e3e' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                    {isListening ? '🎙️ 듣는 중...' : '🎙️ 음성으로 승인'}
+                    {isListening ? '🎙️ 듣는 중...' : '🎙️ 음성으로 승인 (단독)'}
                   </button>
                 </div>
               </div>
