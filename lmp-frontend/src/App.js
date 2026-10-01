@@ -44,6 +44,32 @@ function App() {
     alert(`🚨 [시스템 알림] ${scenario.split(' ')[0]} 설비에서 위험 데이터가 수신되었습니다!`);
   };
 
+  // 💡 신규: 실시간 창원 날씨(Open-Meteo API)를 불러오는 함수 (API 키 불필요)
+  const getRealTimeWeather = async () => {
+    try {
+      // 창원의 위도(35.2281)와 경도(128.6811)를 기반으로 날씨 데이터 요청
+      const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.2281&longitude=128.6811&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FSeoul");
+      const data = await response.json();
+      
+      const currentTemp = data.current_weather.temperature; // 현재 기온
+      const maxTemp = data.daily.temperature_2m_max[0];     // 최고 기온
+      const minTemp = data.daily.temperature_2m_min[0];     // 최저 기온
+      
+      // 현재 '월'을 기준으로 봄, 여름, 가을, 겨울 자동 계산
+      const month = new Date().getMonth() + 1;
+      let season = "겨울";
+      if (month >= 3 && month <= 5) season = "봄";
+      else if (month >= 6 && month <= 8) season = "여름";
+      else if (month >= 9 && month <= 11) season = "가을";
+
+      // AI가 찰떡같이 이해할 수 있도록 문장으로 조립해서 리턴
+      return `현재 계절은 ${season}이며, 기온은 ${currentTemp}℃ (오늘 최저 ${minTemp}℃ / 최고 ${maxTemp}℃) 입니다.`;
+    } catch (error) {
+      console.error("날씨 연동 실패", error);
+      return "날씨 데이터 수신 오류";
+    }
+  };
+
   const generateReport = async () => {
     setLoading(true);
     setReport('');
@@ -52,12 +78,21 @@ function App() {
     const now = new Date();
     const currentTimestamp = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${now.getHours()}시 ${now.getMinutes()}분`;
     const currentLocation = "창원국가산업단지 (제1공장)"; 
+    
+    // 💡 핵심: 날씨 함수를 호출하여 실시간 문자열을 받아옵니다.
+    const currentWeather = await getRealTimeWeather();
 
     try {
       const response = await fetch('https://lmp-backend-api.onrender.com/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sensor_data: sensorData, timestamp: currentTimestamp, location: currentLocation }),
+        // 💡 백엔드로 보낼 때 weather 데이터도 함께 발송!
+        body: JSON.stringify({ 
+          sensor_data: sensorData, 
+          timestamp: currentTimestamp, 
+          location: currentLocation,
+          weather: currentWeather 
+        }),
       });
       const result = await response.json();
       if (result.report || result.data) {
@@ -149,13 +184,12 @@ function App() {
     });
   };
 
-  // 💡 렌더링에 사용될 강력한 에러 상태 감지 조건 (정상 작동이라는 말이 없으면 무조건 에러!)
   const isErrorState = !sensorData.includes('정상 작동');
 
   return (
     <div className="App" style={{ display: 'flex', gap: '30px', padding: '40px', fontFamily: '"Pretendard", sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
       
-      {/* 🗄️️ 좌측 사이드바 */}
+      {/* 🗄 좌측 사이드바 */}
       <div style={{ width: '30%', backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e1e4e8', height: 'fit-content' }}>
         <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
           📊 설비별 위험 감지 통계
@@ -176,7 +210,6 @@ function App() {
           {history.slice(0,3).map((item) => (
             <li key={item.id} style={{ backgroundColor: '#ffffff', padding: '15px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #edf2f7', fontSize:'13px' }}>
               <div style={{ color: '#718096', marginBottom: '5px' }}>{item.date}</div>
-              {/* 💡 사이드바 이력도 에러 유무에 따라 빨간색 표시 */}
               <div style={{ fontWeight: 'bold', color: !item.sensor_data.includes('정상') ? '#e53e3e' : '#2d3748' }}>{item.sensor_data}</div>
             </li>
           ))}
@@ -194,12 +227,10 @@ function App() {
         <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '10px', border: '1px solid #dee2e6', marginBottom: '30px' }}>
           <h3 style={{ marginTop: '0', color: '#495057', fontSize: '16px', display: 'flex', justifyContent: 'space-between' }}>
             <span>📡 실시간 현장 IoT 센서 수신반</span>
-            {/* 💡 어떤 시나리오든 완벽하게 빨간색으로 변경되도록 수정 */}
             <span style={{ color: isErrorState ? '#e53e3e' : '#38a169' }}>
               {isErrorState ? '🔴 위험 상태' : '🟢 정상 가동'}
             </span>
           </h3>
-          {/* 💡 입력창 테두리와 배경색도 완벽하게 연동 */}
           <input type="text" value={sensorData} readOnly style={{ width: '100%', padding: '12px', fontSize: '15px', borderRadius: '6px', border: isErrorState ? '2px solid #e53e3e' : '1px solid #ced4da', marginBottom: '15px', backgroundColor: isErrorState ? '#fff5f5' : '#ffffff', fontWeight: isErrorState ? 'bold' : 'normal' }} />
           
           <div style={{ marginBottom: '15px', textAlign: 'left' }}>
