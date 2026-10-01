@@ -13,10 +13,9 @@ function App() {
   const [history, setHistory] = useState([]);
   const [scenario, setScenario] = useState("CM-100 모터 온도 85℃ 이상 경고 (과열 위험)");
   
-  // 💡 신규: 음성 인식 및 비전 AI 사진 상태 관리
   const [isListening, setIsListening] = useState(false);
   const [uploadImage, setUploadImage] = useState(null);
-  const reportRef = useRef(null); // PDF 캡처용 참조
+  const reportRef = useRef(null);
 
   const fetchHistory = async () => {
     try {
@@ -30,7 +29,6 @@ function App() {
 
   useEffect(() => { fetchHistory(); }, []);
 
-  // 💡 신규 1: 통계 대시보드용 데이터 가공
   const chartData = [
     { name: '모터 과열', value: history.filter(h => h.sensor_data.includes('모터')).length || 1 },
     { name: '프레스 유압', value: history.filter(h => h.sensor_data.includes('프레스')).length || 1 },
@@ -73,7 +71,6 @@ function App() {
     setLoading(false);
   };
 
-  // 💡 신규 2 수정본: Web Speech API (사진 없이 음성만으로 단독 결재)
   const handleVoiceApproval = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -90,12 +87,11 @@ function App() {
       alert(`🎙️ 현장 음성 인식 완료: "${transcript}"\n사진 검증을 생략하고 음성 명령으로 즉시 승인을 진행합니다.`);
       setIsListening(false);
       
-      // 💡 비전 AI로 넘기지 않고 여기서 바로 센서 정상화 및 보고서 완료 처리!
       setTimeout(() => {
         setSensorData("모든 설비 정상 작동 중 (음성 조치 승인 완료)");
         setReportStatus('completed');
         alert("✅ [최종 검증 완료] 음성 승인 및 IoT 센서 정상화가 확인되었습니다.\n보고서를 최종 결재합니다.");
-      }, 1000); // 1초 뒤 센서 정상화 연출
+      }, 1000);
     };
     
     recognition.onerror = () => {
@@ -104,7 +100,6 @@ function App() {
     };
   };
 
-  // 💡 비전 AI와 실제 통신하는 로직 (사진 업로드 시에만 작동)
   const handleWorkerApproval = async () => {
     if (!uploadImage) {
       alert("⚠️ 조치 완료 사진을 먼저 업로드해 주세요! (비전 AI 검증용)");
@@ -142,7 +137,6 @@ function App() {
     }
   };
 
-  // 💡 신규 3: PDF 자동 변환 및 다운로드
   const exportPDF = () => {
     html2canvas(reportRef.current).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
@@ -155,10 +149,13 @@ function App() {
     });
   };
 
+  // 💡 렌더링에 사용될 강력한 에러 상태 감지 조건 (정상 작동이라는 말이 없으면 무조건 에러!)
+  const isErrorState = !sensorData.includes('정상 작동');
+
   return (
     <div className="App" style={{ display: 'flex', gap: '30px', padding: '40px', fontFamily: '"Pretendard", sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
       
-      {/* 🗄️ 좌측 사이드바: 통계 차트 및 이력 */}
+      {/* 🗄️️ 좌측 사이드바 */}
       <div style={{ width: '30%', backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e1e4e8', height: 'fit-content' }}>
         <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
           📊 설비별 위험 감지 통계
@@ -179,7 +176,8 @@ function App() {
           {history.slice(0,3).map((item) => (
             <li key={item.id} style={{ backgroundColor: '#ffffff', padding: '15px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #edf2f7', fontSize:'13px' }}>
               <div style={{ color: '#718096', marginBottom: '5px' }}>{item.date}</div>
-              <div style={{ fontWeight: 'bold', color: item.sensor_data.includes('경고') ? '#e53e3e' : '#2d3748' }}>{item.sensor_data}</div>
+              {/* 💡 사이드바 이력도 에러 유무에 따라 빨간색 표시 */}
+              <div style={{ fontWeight: 'bold', color: !item.sensor_data.includes('정상') ? '#e53e3e' : '#2d3748' }}>{item.sensor_data}</div>
             </li>
           ))}
         </ul>
@@ -196,11 +194,13 @@ function App() {
         <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '10px', border: '1px solid #dee2e6', marginBottom: '30px' }}>
           <h3 style={{ marginTop: '0', color: '#495057', fontSize: '16px', display: 'flex', justifyContent: 'space-between' }}>
             <span>📡 실시간 현장 IoT 센서 수신반</span>
-            <span style={{ color: sensorData.includes('경고') ? '#e53e3e' : '#38a169' }}>
-              {sensorData.includes('경고') ? '🔴 위험 상태' : '🟢 정상 가동'}
+            {/* 💡 어떤 시나리오든 완벽하게 빨간색으로 변경되도록 수정 */}
+            <span style={{ color: isErrorState ? '#e53e3e' : '#38a169' }}>
+              {isErrorState ? '🔴 위험 상태' : '🟢 정상 가동'}
             </span>
           </h3>
-          <input type="text" value={sensorData} readOnly style={{ width: '100%', padding: '12px', fontSize: '15px', borderRadius: '6px', border: sensorData.includes('경고') ? '2px solid #e53e3e' : '1px solid #ced4da', marginBottom: '15px', backgroundColor: sensorData.includes('경고') ? '#fff5f5' : '#ffffff', fontWeight: sensorData.includes('경고') ? 'bold' : 'normal' }} />
+          {/* 💡 입력창 테두리와 배경색도 완벽하게 연동 */}
+          <input type="text" value={sensorData} readOnly style={{ width: '100%', padding: '12px', fontSize: '15px', borderRadius: '6px', border: isErrorState ? '2px solid #e53e3e' : '1px solid #ced4da', marginBottom: '15px', backgroundColor: isErrorState ? '#fff5f5' : '#ffffff', fontWeight: isErrorState ? 'bold' : 'normal' }} />
           
           <div style={{ marginBottom: '15px', textAlign: 'left' }}>
             <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#4a5568' }}>설비 고장 시나리오 선택:</label>
@@ -214,19 +214,18 @@ function App() {
         </div>
         
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <button onClick={generateReport} disabled={loading || sensorData.includes('정상 작동')} style={{ padding: '16px 32px', fontSize: '18px', fontWeight: 'bold', backgroundColor: (loading || sensorData.includes('정상 작동')) ? '#bdc3c7' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: (loading || sensorData.includes('정상 작동')) ? 'not-allowed' : 'pointer', width: '100%' }}>
+          <button onClick={generateReport} disabled={loading || !isErrorState} style={{ padding: '16px 32px', fontSize: '18px', fontWeight: 'bold', backgroundColor: (loading || !isErrorState) ? '#bdc3c7' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: (loading || !isErrorState) ? 'not-allowed' : 'pointer', width: '100%' }}>
             {loading ? '에이전트들이 현장 매뉴얼을 탐색 중입니다... 🤖' : '일일 작업 보고서 자동 생성 (진단 가이드)'}
           </button>
         </div>
 
-        {/* AI 보고서 결과 영역 (PDF 캡처 대상) */}
+        {/* AI 보고서 결과 영역 */}
         {report && (
           <div ref={reportRef} style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', border: reportStatus === 'completed' ? '2px solid #38a169' : '2px solid #d69e2e', boxShadow: '0 8px 16px rgba(0,0,0,0.05)', color: '#24292e', lineHeight: '1.8', textAlign: 'left', position: 'relative' }}>
             <div style={{ position: 'absolute', top: '-15px', left: '20px', backgroundColor: reportStatus === 'completed' ? '#38a169' : '#d69e2e', color: 'white', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '14px' }}>
               {reportStatus === 'completed' ? '✅ 최종 조치 및 안전 검증 완료' : '⚠️ AI 진단 완료 (현장 조치 대기 중)'}
             </div>
             
-            {/* 💡 신규 3: PDF 다운로드 버튼 */}
             <button onClick={exportPDF} style={{ position: 'absolute', top: '15px', right: '20px', padding: '8px 15px', backgroundColor: '#4a5568', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
               📄 PDF로 저장
             </button>
@@ -235,7 +234,6 @@ function App() {
               {report}
             </ReactMarkdown>
 
-            {/* 💡 신규 1 & 2: 비전 사진 업로드 및 음성 승인 UI */}
             {reportStatus === 'pending' && (
               <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px dashed #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
                 <p style={{ color: '#718096', fontWeight: 'bold', margin: 0 }}>📸 조치 완료 사진 업로드 (Vision AI 검증)</p>
