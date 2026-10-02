@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// 💡 LineChart 관련 컴포넌트 추가 수입
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import './App.css';
 
 function App() {
   const [report, setReport] = useState('');
+  const [displayReport, setDisplayReport] = useState(''); // 💡 번역된 내용을 화면에 뿌려줄 분리된 상태
   const [loading, setLoading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false); // 💡 번역 로딩 상태
+  
   const [sensorData, setSensorData] = useState('모든 설비 정상 작동 중 (CM-100 온도 45℃)');
   const [reportStatus, setReportStatus] = useState('none');
   const [history, setHistory] = useState([]);
@@ -27,7 +31,13 @@ function App() {
     }
   };
 
-  useEffect(() => { fetchHistory(); }, []);
+  // 💡 [신규] 처음 웹 접속 시 윈도우 바탕화면 알림 권한 획득
+  useEffect(() => { 
+    fetchHistory(); 
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const chartData = [
     { name: '모터 과열', value: history.filter(h => h.sensor_data.includes('모터')).length || 1 },
@@ -36,33 +46,47 @@ function App() {
   ];
   const COLORS = ['#e53e3e', '#d69e2e', '#3182ce'];
 
+  // 💡 [신규] 예지 보전(Predictive) 라인 차트용 시계열 가상 데이터
+  const lineChartData = [
+    { time: '08:00', 온도: 45 },
+    { time: '08:30', 온도: 48 },
+    { time: '09:00', 온도: 52 },
+    { time: '09:10', 온도: 65 },
+    { time: '09:15', 온도: 75 },
+    { time: '09:20', 온도: 88 } // 급상승 구간
+  ];
+
   const triggerSensorAlert = () => {
     setSensorData(scenario);
     setReport('');
+    setDisplayReport('');
     setReportStatus('none');
     setUploadImage(null);
+    
+    // 💡 [신규] 바탕화면 시스템 백그라운드 푸시 알림 발송
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new window.Notification("🚨 L.M.P 긴급 안전 알림", {
+        body: `${scenario.split(' ')[0]} 설비에서 위험 데이터가 수신되었습니다! 즉시 조치바랍니다.`
+      });
+    }
     alert(`🚨 [시스템 알림] ${scenario.split(' ')[0]} 설비에서 위험 데이터가 수신되었습니다!`);
   };
 
-  // 💡 신규: 실시간 창원 날씨(Open-Meteo API)를 불러오는 함수 (API 키 불필요)
   const getRealTimeWeather = async () => {
     try {
-      // 창원의 위도(35.2281)와 경도(128.6811)를 기반으로 날씨 데이터 요청
       const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.2281&longitude=128.6811&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FSeoul");
       const data = await response.json();
       
-      const currentTemp = data.current_weather.temperature; // 현재 기온
-      const maxTemp = data.daily.temperature_2m_max[0];     // 최고 기온
-      const minTemp = data.daily.temperature_2m_min[0];     // 최저 기온
+      const currentTemp = data.current_weather.temperature; 
+      const maxTemp = data.daily.temperature_2m_max[0];     
+      const minTemp = data.daily.temperature_2m_min[0];     
       
-      // 현재 '월'을 기준으로 봄, 여름, 가을, 겨울 자동 계산
       const month = new Date().getMonth() + 1;
       let season = "겨울";
       if (month >= 3 && month <= 5) season = "봄";
       else if (month >= 6 && month <= 8) season = "여름";
       else if (month >= 9 && month <= 11) season = "가을";
 
-      // AI가 찰떡같이 이해할 수 있도록 문장으로 조립해서 리턴
       return `현재 계절은 ${season}이며, 기온은 ${currentTemp}℃ (오늘 최저 ${minTemp}℃ / 최고 ${maxTemp}℃) 입니다.`;
     } catch (error) {
       console.error("날씨 연동 실패", error);
@@ -73,37 +97,53 @@ function App() {
   const generateReport = async () => {
     setLoading(true);
     setReport('');
+    setDisplayReport('');
     setReportStatus('none');
 
     const now = new Date();
     const currentTimestamp = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${now.getHours()}시 ${now.getMinutes()}분`;
     const currentLocation = "창원국가산업단지 (제1공장)"; 
-    
-    // 💡 핵심: 날씨 함수를 호출하여 실시간 문자열을 받아옵니다.
     const currentWeather = await getRealTimeWeather();
 
     try {
       const response = await fetch('https://lmp-backend-api.onrender.com/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 💡 백엔드로 보낼 때 weather 데이터도 함께 발송!
-        body: JSON.stringify({ 
-          sensor_data: sensorData, 
-          timestamp: currentTimestamp, 
-          location: currentLocation,
-          weather: currentWeather 
-        }),
+        body: JSON.stringify({ sensor_data: sensorData, timestamp: currentTimestamp, location: currentLocation, weather: currentWeather }),
       });
       const result = await response.json();
       if (result.report || result.data) {
         setReport(result.report || result.data);
+        setDisplayReport(result.report || result.data); // 화면 표시용으로도 세팅
         setReportStatus('pending');
         fetchHistory(); 
       }
     } catch (error) {
-      setReport('서버 통신 오류가 발생했습니다.');
+      setDisplayReport('서버 통신 오류가 발생했습니다.');
     }
     setLoading(false);
+  };
+
+  // 💡 [신규] 다국어 번역 통신 로직
+  const handleTranslate = async (langName) => {
+    if (!report) return;
+    setIsTranslating(true);
+    try {
+      const response = await fetch('https://lmp-backend-api.onrender.com/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: report, lang: langName })
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        setDisplayReport(result.translated_text);
+      } else {
+        alert("번역 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      alert("서버와의 통신에 실패했습니다.");
+    }
+    setIsTranslating(false);
   };
 
   const handleVoiceApproval = () => {
@@ -172,17 +212,13 @@ function App() {
     }
   };
 
-// 💡 수정된 PDF 자동 변환 (내용이 길면 여러 페이지로 분할하여 저장)
   const exportPDF = () => {
-    // 캡처 해상도를 높이기 위해 scale: 2 옵션 추가
     html2canvas(reportRef.current, { scale: 2 }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // A4 비율에 맞춰 캡처된 이미지의 최종 높이 계산
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
       const ratio = pdfWidth / imgWidth;
@@ -191,11 +227,9 @@ function App() {
       let heightLeft = finalImgHeight;
       let position = 0;
       
-      // 첫 페이지 인쇄
       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
       heightLeft -= pdfHeight;
       
-      // 내용이 남아있다면 새 페이지(addPage)를 계속 추가
       while (heightLeft > 0) {
         position = heightLeft - finalImgHeight;
         pdf.addPage();
@@ -206,7 +240,7 @@ function App() {
       pdf.save("LMP_안전조치보고서.pdf");
     });
   };
-  
+
   const isErrorState = !sensorData.includes('정상 작동');
 
   return (
@@ -214,10 +248,27 @@ function App() {
       
       {/* 🗄 좌측 사이드바 */}
       <div style={{ width: '30%', backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e1e4e8', height: 'fit-content' }}>
+        
+        {/* 💡 [신규] 예지 보전 꺾은선 차트 */}
+        <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+          📈 CM-100 모터 온도 추이 (예지보전)
+        </h3>
+        <div style={{ height: '200px', marginBottom: '30px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={lineChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time" tick={{fontSize: 12}} />
+              <YAxis tick={{fontSize: 12}} domain={[40, 100]} />
+              <Tooltip />
+              <Line type="monotone" dataKey="온도" stroke="#e53e3e" strokeWidth={2} activeDot={{ r: 8 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
         <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
           📊 설비별 위험 감지 통계
         </h3>
-        <div style={{ height: '200px', marginBottom: '20px' }}>
+        <div style={{ height: '200px', marginBottom: '30px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={chartData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value">
@@ -268,25 +319,41 @@ function App() {
         </div>
         
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <button onClick={generateReport} disabled={loading || !isErrorState} style={{ padding: '16px 32px', fontSize: '18px', fontWeight: 'bold', backgroundColor: (loading || !isErrorState) ? '#bdc3c7' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: (loading || !isErrorState) ? 'not-allowed' : 'pointer', width: '100%' }}>
+          <button onClick={generateReport} disabled={loading || !isErrorState || isTranslating} style={{ padding: '16px 32px', fontSize: '18px', fontWeight: 'bold', backgroundColor: (loading || !isErrorState || isTranslating) ? '#bdc3c7' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: (loading || !isErrorState || isTranslating) ? 'not-allowed' : 'pointer', width: '100%' }}>
             {loading ? '에이전트들이 현장 매뉴얼을 탐색 중입니다... 🤖' : '일일 작업 보고서 자동 생성 (진단 가이드)'}
           </button>
         </div>
 
         {/* AI 보고서 결과 영역 */}
-        {report && (
+        {displayReport && (
           <div ref={reportRef} style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '12px', border: reportStatus === 'completed' ? '2px solid #38a169' : '2px solid #d69e2e', boxShadow: '0 8px 16px rgba(0,0,0,0.05)', color: '#24292e', lineHeight: '1.8', textAlign: 'left', position: 'relative' }}>
+            
             <div style={{ position: 'absolute', top: '-15px', left: '20px', backgroundColor: reportStatus === 'completed' ? '#38a169' : '#d69e2e', color: 'white', padding: '5px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '14px' }}>
               {reportStatus === 'completed' ? '✅ 최종 조치 및 안전 검증 완료' : '⚠️ AI 진단 완료 (현장 조치 대기 중)'}
             </div>
             
+            {/* 💡 [신규] 외국인 근로자 다국어 번역 지원 국기 버튼 */}
+            <div style={{ position: 'absolute', top: '15px', right: '130px', display: 'flex', gap: '5px' }}>
+              <button onClick={() => setDisplayReport(report)} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="한국어 원본">🇰🇷</button>
+              <button onClick={() => handleTranslate('영어')} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="English">🇺🇸</button>
+              <button onClick={() => handleTranslate('베트남어')} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="Tiếng Việt">🇻🇳</button>
+              <button onClick={() => handleTranslate('인도네시아어')} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="Bahasa Indonesia">🇮🇩</button>
+            </div>
+
             <button onClick={exportPDF} style={{ position: 'absolute', top: '15px', right: '20px', padding: '8px 15px', backgroundColor: '#4a5568', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
               📄 PDF로 저장
             </button>
             
-            <ReactMarkdown components={{ h1: ({node, ...props}) => <h1 style={{ borderBottom: '2px solid #eaecef', paddingBottom: '10px', color: '#1a202c', marginTop: '10px' }} {...props} />, h3: ({node, ...props}) => <h3 style={{ color: '#2b6cb0', marginTop: '30px' }} {...props} />, strong: ({node, ...props}) => <strong style={{ color: '#e53e3e', backgroundColor: '#fff5f5', padding: '0 4px', borderRadius: '4px' }} {...props} /> }}>
-              {report}
-            </ReactMarkdown>
+            {/* 💡 번역 중일 때 로딩 텍스트 표시 */}
+            {isTranslating ? (
+              <div style={{ textAlign: 'center', padding: '50px 0', color: '#718096', fontWeight: 'bold' }}>
+                🌍 AI가 다국어 번역을 진행 중입니다... 잠시만 기다려주세요.
+              </div>
+            ) : (
+              <ReactMarkdown components={{ h1: ({node, ...props}) => <h1 style={{ borderBottom: '2px solid #eaecef', paddingBottom: '10px', color: '#1a202c', marginTop: '10px' }} {...props} />, h3: ({node, ...props}) => <h3 style={{ color: '#2b6cb0', marginTop: '30px' }} {...props} />, strong: ({node, ...props}) => <strong style={{ color: '#e53e3e', backgroundColor: '#fff5f5', padding: '0 4px', borderRadius: '4px' }} {...props} /> }}>
+                {displayReport}
+              </ReactMarkdown>
+            )}
 
             {reportStatus === 'pending' && (
               <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '2px dashed #e2e8f0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
