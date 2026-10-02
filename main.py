@@ -69,16 +69,18 @@ crew = Crew(
     max_rpm=3
 )
 
-# 💡 수정 2: inputs에 current_weather 추가 및 P.AX에게도 날씨 조작 금지 지시
+# 💡 수정된 run_lmp_crew 함수 (줄바꿈 및 Bullet point 엄격 통제)
 def run_lmp_crew(sensor_input, current_time, current_location, current_weather):
     task3.description = f"""
     task1과 task2의 결과를 종합하여 일일 작업 보고서를 작성하세요.
-    - [작업일시]: {current_time}
-    - [작업장소]: {current_location}
-    - [실제 기상상황]: {current_weather}
+    보고서 최상단에는 반드시 아래의 3가지 기본 정보를 Bullet point(-) 기호를 사용하여 각각 '독립된 줄(새 줄)'에 작성하세요. 절대로 한 줄에 연달아 쓰지 마세요.
     
-    위 시간, 장소, 기상상황을 반드시 보고서 최상단에 있는 그대로 명시하세요. 
-    [특이사항]을 적을 때 절대 비, 눈, 강풍 등을 임의로 지어내지 말고, 전달받은 기상상황 팩트만 기록하세요.
+    - **작업일시**: {current_time}
+    - **작업장소**: {current_location}
+    - **기상상황**: {current_weather}
+    
+    위 기본 정보 아래에 [특이사항], [조치결과] 양식에 맞춰 마크다운 형식으로 깔끔하게 작성하세요. 
+    절대 비, 눈, 강풍 등을 임의로 지어내지 말고, 전달받은 기상상황 팩트만 기록하세요.
     """
     
     result = crew.kickoff(inputs={
