@@ -1,12 +1,14 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from main import run_lmp_crew
+# 💡 핵심: main.py에서 완벽하게 작동이 증명된 gemini_llm을 그대로 가져옵니다.
+from main import run_lmp_crew, gemini_llm 
+from crewai import Agent, Task, Crew
 import sqlite3
 import base64
 import os
 from dotenv import load_dotenv
-import litellm  # 💡 CrewAI와 완벽 호환되는 100% 안정적인 내부 LLM 라우터
+import litellm
 
 load_dotenv()
 
@@ -73,7 +75,6 @@ def get_reports_history():
     history = [{"id": r[0], "sensor_data": r[1], "date": r[2], "location": r[3]} for r in rows]
     return {"status": "success", "history": history}
 
-# 💡 비전 AI (litellm 엔진으로 100% 호환 적용)
 @app.post("/api/verify-image")
 async def verify_image(file: UploadFile = File(...)):
     try:
@@ -109,19 +110,30 @@ async def verify_image(file: UploadFile = File(...)):
         print(f"이미지 판독 중 에러 발생: {e}")
         return {"status": "error", "message": "사진 판독 중 오류가 발생했습니다."}
 
-# 💡 번역 AI (CrewAI와 동일한 litellm 엔진 사용으로 404 원천 차단)
+# 💡 번역 라우터를 우회 통신망인 CrewAI '번역 에이전트'로 완전 교체!
 @app.post("/api/translate")
 def translate_report(req: TranslateRequest):
     try:
-        prompt = f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}"
-        
-        response = litellm.completion(
-            model="gemini/gemini-1.5-flash",
-            messages=[{"role": "user", "content": prompt}],
-            api_key=os.environ.get("GEMINI_API_KEY")
+        # 보고서 작성에 성공했던 LLM을 장착한 전문 번역 에이전트를 투입합니다.
+        translator_agent = Agent(
+            role='전문 산업 번역가',
+            goal=f'제공된 문서를 {req.lang}로 완벽하게 번역합니다.',
+            backstory='당신은 산업 현장 용어에 능통한 원어민 수준의 기술 번역가입니다.',
+            llm=gemini_llm, # 성공 보장 치트키
+            allow_delegation=False,
+            verbose=True
         )
         
-        return {"status": "success", "translated_text": response.choices[0].message.content}
+        translation_task = Task(
+            description=f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}",
+            expected_output=f"{req.lang}로 번역된 마크다운 텍스트",
+            agent=translator_agent
+        )
+        
+        crew = Crew(agents=[translator_agent], tasks=[translation_task])
+        result = str(crew.kickoff())
+        
+        return {"status": "success", "translated_text": result}
         
     except Exception as e:
         print(f"번역 중 에러 발생: {e}")
