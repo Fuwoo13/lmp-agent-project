@@ -172,18 +172,41 @@ function App() {
     }
   };
 
+// 💡 수정된 PDF 자동 변환 (내용이 길면 여러 페이지로 분할하여 저장)
   const exportPDF = () => {
-    html2canvas(reportRef.current).then((canvas) => {
+    // 캡처 해상도를 높이기 위해 scale: 2 옵션 추가
+    html2canvas(reportRef.current, { scale: 2 }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
+      
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // A4 비율에 맞춰 캡처된 이미지의 최종 높이 계산
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = pdfWidth / imgWidth;
+      const finalImgHeight = imgHeight * ratio;
+      
+      let heightLeft = finalImgHeight;
+      let position = 0;
+      
+      // 첫 페이지 인쇄
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+      heightLeft -= pdfHeight;
+      
+      // 내용이 남아있다면 새 페이지(addPage)를 계속 추가
+      while (heightLeft > 0) {
+        position = heightLeft - finalImgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+        heightLeft -= pdfHeight;
+      }
+      
       pdf.save("LMP_안전조치보고서.pdf");
     });
   };
-
+  
   const isErrorState = !sensorData.includes('정상 작동');
 
   return (
