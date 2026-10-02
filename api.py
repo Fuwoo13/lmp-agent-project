@@ -33,18 +33,21 @@ def init_db():
 
 init_db()
 
+# 💡 [신규] 번역 요청용 데이터 모델
+class TranslateRequest(BaseModel):
+    text: str
+    lang: str
+
 @app.post("/api/generate-report")
 def generate_report(data: dict):
     sensor_input = data.get("sensor_data", "CM-100 모터 과열")
     current_time = data.get("timestamp", "시간 정보 없음")
     current_location = data.get("location", "창원국가산업단지")
-    # 💡 프론트엔드가 보내준 날씨 데이터를 받습니다. (없으면 기본값)
     current_weather = data.get("weather", "맑음 (기온 정보 없음)") 
     
     print(f"요청 수신 - 날씨: {current_weather} / 고장: {sensor_input}")
     
     try:
-        # 💡 run_lmp_crew에 current_weather 변수를 4번째로 넘겨줍니다.
         result_text = str(run_lmp_crew(sensor_input, current_time, current_location, current_weather))
         
         conn = sqlite3.connect('lmp_database.db')
@@ -74,7 +77,7 @@ def get_reports_history():
 async def verify_image(file: UploadFile = File(...)):
     try:
         image_bytes = await file.read()
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         
         prompt = """
         당신은 깐깐한 공장 현장 안전 관리자입니다. 
@@ -92,3 +95,15 @@ async def verify_image(file: UploadFile = File(...)):
     except Exception as e:
         print(f"이미지 판독 중 에러 발생: {e}")
         return {"status": "error", "message": "사진 판독 중 오류가 발생했습니다."}
+
+# 💡 [신규] 다국어 번역 엔진 라우터 추가
+@app.post("/api/translate")
+def translate_report(req: TranslateRequest):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}"
+        response = model.generate_content(prompt)
+        return {"status": "success", "translated_text": response.text}
+    except Exception as e:
+        print(f"번역 중 에러 발생: {e}")
+        return {"status": "error", "message": str(e)}
