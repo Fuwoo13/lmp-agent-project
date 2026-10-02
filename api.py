@@ -77,7 +77,8 @@ def get_reports_history():
 async def verify_image(file: UploadFile = File(...)):
     try:
         image_bytes = await file.read()
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        # 💡 에러 수정: 모델명을 gemini-1.5-flash-latest 로 변경
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         prompt = """
         당신은 깐깐한 공장 현장 안전 관리자입니다. 
@@ -100,7 +101,8 @@ async def verify_image(file: UploadFile = File(...)):
 @app.post("/api/translate")
 def translate_report(req: TranslateRequest):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 💡 에러 수정: 모델명을 gemini-1.5-flash-latest 로 변경
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         prompt = f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}"
         response = model.generate_content(prompt)
         return {"status": "success", "translated_text": response.text}
