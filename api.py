@@ -34,7 +34,7 @@ def init_db():
 init_db()
 
 @app.post("/api/generate-report")
-async def generate_report(data: dict):
+def generate_report(data: dict):
     sensor_input = data.get("sensor_data", "CM-100 모터 과열")
     current_time = data.get("timestamp", "시간 정보 없음")
     current_location = data.get("location", "창원국가산업단지")
