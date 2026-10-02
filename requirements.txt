@@ -173,3 +173,4 @@ xxhash==4.0.1
 yarl==1.25.1
 youtube-transcript-api==1.2.4
 zstandard==0.25.0
+litellm
