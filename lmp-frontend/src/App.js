@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-// 💡 LineChart 관련 컴포넌트 추가 수입
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -31,7 +30,6 @@ function App() {
     }
   };
 
-  // 💡 [신규] 처음 웹 접속 시 윈도우 바탕화면 알림 권한 획득
   useEffect(() => { 
     fetchHistory(); 
     if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -46,7 +44,6 @@ function App() {
   ];
   const COLORS = ['#e53e3e', '#d69e2e', '#3182ce'];
 
-  // 💡 [신규] 예지 보전(Predictive) 라인 차트용 시계열 가상 데이터
   const lineChartData = [
     { time: '08:00', 온도: 45 },
     { time: '08:30', 온도: 48 },
@@ -63,7 +60,6 @@ function App() {
     setReportStatus('none');
     setUploadImage(null);
     
-    // 💡 [신규] 바탕화면 시스템 백그라운드 푸시 알림 발송
     if ('Notification' in window && Notification.permission === 'granted') {
       new window.Notification("🚨 L.M.P 긴급 안전 알림", {
         body: `${scenario.split(' ')[0]} 설비에서 위험 데이터가 수신되었습니다! 즉시 조치바랍니다.`
@@ -124,7 +120,7 @@ function App() {
     setLoading(false);
   };
 
-  // 💡 [신규] 다국어 번역 통신 로직
+  //다국어 번역 통신 로직
   const handleTranslate = async (langName) => {
     if (!report) return;
     setIsTranslating(true);

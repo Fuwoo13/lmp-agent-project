@@ -1,7 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-# 💡 핵심: main.py에서 완벽하게 작동이 증명된 gemini_llm을 그대로 가져옵니다.
 from main import run_lmp_crew, gemini_llm 
 from crewai import Agent, Task, Crew
 import sqlite3
