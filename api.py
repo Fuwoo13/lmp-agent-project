@@ -3,11 +3,10 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from main import run_lmp_crew
 import sqlite3
-from datetime import datetime
-import google.generativeai as genai
+import urllib.request
+import json
+import base64
 import os
-
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 app = FastAPI()
 
@@ -33,7 +32,6 @@ def init_db():
 
 init_db()
 
-# 💡 [신규] 번역 요청용 데이터 모델
 class TranslateRequest(BaseModel):
     text: str
     lang: str
@@ -73,12 +71,13 @@ def get_reports_history():
     history = [{"id": r[0], "sensor_data": r[1], "date": r[2], "location": r[3]} for r in rows]
     return {"status": "success", "history": history}
 
+# 💡 고장난 라이브러리를 버리고 REST API로 구글 서버 직접 타격!
 @app.post("/api/verify-image")
 async def verify_image(file: UploadFile = File(...)):
     try:
         image_bytes = await file.read()
-        # 💡 에러 수정: 모델명을 gemini-1.5-flash-latest 로 변경
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        mime_type = file.content_type or "image/jpeg"
+        b64_img = base64.b64encode(image_bytes).decode('utf-8')
         
         prompt = """
         당신은 깐깐한 공장 현장 안전 관리자입니다. 
@@ -88,24 +87,48 @@ async def verify_image(file: UploadFile = File(...)):
         그 이유를 2~3문장으로 전문가처럼 간략히 설명해 주세요.
         """
         
-        image_parts = [{"mime_type": file.content_type, "data": image_bytes}]
-        response = model.generate_content([prompt, image_parts[0]])
+        api_key = os.environ.get("GEMINI_API_KEY")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         
-        return {"status": "success", "message": response.text}
+        data = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime_type, "data": b64_img}}
+                ]
+            }]
+        }
+        
+        req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            text_response = result['candidates'][0]['content']['parts'][0]['text']
+        
+        return {"status": "success", "message": text_response}
         
     except Exception as e:
         print(f"이미지 판독 중 에러 발생: {e}")
         return {"status": "error", "message": "사진 판독 중 오류가 발생했습니다."}
 
-# 💡 [신규] 다국어 번역 엔진 라우터 추가
+# 💡 번역 역시 외부 라이브러리 없이 100% 안전하게 직접 호출!
 @app.post("/api/translate")
 def translate_report(req: TranslateRequest):
     try:
-        # 💡 에러 수정: 모델명을 gemini-1.5-flash-latest 로 변경
-        model = genai.GenerativeModel('gemini-pro')
         prompt = f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}"
-        response = model.generate_content(prompt)
-        return {"status": "success", "translated_text": response.text}
+        
+        api_key = os.environ.get("GEMINI_API_KEY")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        
+        data = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        
+        req_obj = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req_obj) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            text_response = result['candidates'][0]['content']['parts'][0]['text']
+            
+        return {"status": "success", "translated_text": text_response}
     except Exception as e:
         print(f"번역 중 에러 발생: {e}")
         return {"status": "error", "message": str(e)}
