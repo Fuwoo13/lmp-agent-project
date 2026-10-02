@@ -4,9 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from main import run_lmp_crew
 import sqlite3
 import urllib.request
+import urllib.error
 import json
 import base64
 import os
+from dotenv import load_dotenv
+
+# 💡 안전한 환경변수 로딩
+load_dotenv()
 
 app = FastAPI()
 
@@ -35,6 +40,42 @@ init_db()
 class TranslateRequest(BaseModel):
     text: str
     lang: str
+
+# 💡 핵심: 404 에러를 완벽 방어하는 자동 우회(Fallback) 통신망
+def call_gemini(prompt, mime_type=None, b64_img=None):
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    
+    # 텍스트 번역용 모델 후보군 (사진 판독 시에는 비전 모델 후보군 적용)
+    models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.0-pro", "gemini-pro"]
+    if b64_img:
+        models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro-vision"]
+
+    last_error = ""
+    # 모델 리스트를 순회하며 하나라도 성공할 때까지 API를 찌릅니다.
+    for model in models:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            
+            parts = [{"text": prompt}]
+            if b64_img:
+                parts.append({"inline_data": {"mime_type": mime_type, "data": b64_img}})
+                
+            data = {"contents": [{"parts": parts}]}
+            
+            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(req) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                return result['candidates'][0]['content']['parts'][0]['text']
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            last_error = f"[{model}] 404 차단됨 -> 다음 모델로 우회..."
+            print(last_error)
+            continue # 에러가 나도 앱을 터뜨리지 않고 다음 모델로 즉시 재시도!
+        except Exception as e:
+            continue
+
+    raise Exception("모든 구글 Gemini 모델 접근에 실패했습니다. API 키를 확인해주세요.")
 
 @app.post("/api/generate-report")
 def generate_report(data: dict):
@@ -71,7 +112,6 @@ def get_reports_history():
     history = [{"id": r[0], "sensor_data": r[1], "date": r[2], "location": r[3]} for r in rows]
     return {"status": "success", "history": history}
 
-# 💡 고장난 라이브러리를 버리고 REST API로 구글 서버 직접 타격!
 @app.post("/api/verify-image")
 async def verify_image(file: UploadFile = File(...)):
     try:
@@ -87,48 +127,21 @@ async def verify_image(file: UploadFile = File(...)):
         그 이유를 2~3문장으로 전문가처럼 간략히 설명해 주세요.
         """
         
-        api_key = os.environ.get("GEMINI_API_KEY")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
-        data = {
-            "contents": [{
-                "parts": [
-                    {"text": prompt},
-                    {"inline_data": {"mime_type": mime_type, "data": b64_img}}
-                ]
-            }]
-        }
-        
-        req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            text_response = result['candidates'][0]['content']['parts'][0]['text']
-        
+        text_response = call_gemini(prompt, mime_type, b64_img)
         return {"status": "success", "message": text_response}
         
     except Exception as e:
         print(f"이미지 판독 중 에러 발생: {e}")
         return {"status": "error", "message": "사진 판독 중 오류가 발생했습니다."}
 
-# 💡 번역 역시 외부 라이브러리 없이 100% 안전하게 직접 호출!
 @app.post("/api/translate")
 def translate_report(req: TranslateRequest):
     try:
         prompt = f"다음 마크다운 형식의 산업 현장 안전 보고서를 '{req.lang}' 언어로 완벽하게 번역해줘. 마크다운 문법과 양식은 그대로 유지해야 해:\n\n{req.text}"
         
-        api_key = os.environ.get("GEMINI_API_KEY")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
-        data = {
-            "contents": [{"parts": [{"text": prompt}]}]
-        }
-        
-        req_obj = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
-        with urllib.request.urlopen(req_obj) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            text_response = result['candidates'][0]['content']['parts'][0]['text']
-            
+        text_response = call_gemini(prompt)
         return {"status": "success", "translated_text": text_response}
+        
     except Exception as e:
         print(f"번역 중 에러 발생: {e}")
         return {"status": "error", "message": str(e)}
