@@ -43,7 +43,7 @@ process_agent = Agent(
     max_iter=2
 )
 
-# 💡 수정 1: 날씨 환각 차단 프롬프트
+#  날씨 환각 차단 프롬프트
 task1 = Task(
     description='오늘 창원의 실제 실시간 날씨 데이터는 다음과 같습니다: "{current_weather}". 이 날씨 데이터를 절대적으로 신뢰하여 현장 안전 수칙 3가지를 브리핑하세요. 비가 오지 않는데 비가 온다고 하거나 기온을 임의로 변경하는 등 가상의 날씨를 지어내는 것을 엄격히 금지합니다.',
     expected_output='실제 날씨 정보가 반영된 맞춤형 안전 수칙 3가지',
@@ -69,7 +69,7 @@ crew = Crew(
     max_rpm=3
 )
 
-# 💡 수정된 run_lmp_crew 함수 (줄바꿈 및 Bullet point 엄격 통제)
+# run_lmp_crew 함수 (줄바꿈 및 Bullet point 엄격 통제)
 def run_lmp_crew(sensor_input, current_time, current_location, current_weather):
     task3.description = f"""
     task1과 task2의 결과를 종합하여 일일 작업 보고서를 작성하세요.
@@ -92,5 +92,5 @@ def run_lmp_crew(sensor_input, current_time, current_location, current_weather):
     return result
 
 if __name__ == "__main__":
-    print("🚀 로컬 테스트 가동...")
+    print("로컬 테스트 가동...")
     print(run_lmp_crew("CM-100 모터 과열", "2026-10-01", "창원", "현재 계절은 가을이며, 기온은 20℃ 입니다."))

@@ -109,7 +109,7 @@ async def verify_image(file: UploadFile = File(...)):
         print(f"이미지 판독 중 에러 발생: {e}")
         return {"status": "error", "message": "사진 판독 중 오류가 발생했습니다."}
 
-# 💡 번역 라우터를 우회 통신망인 CrewAI '번역 에이전트'로 완전 교체!
+# 번역 라우터를 우회 통신망인 CrewAI로 완전 교체
 @app.post("/api/translate")
 def translate_report(req: TranslateRequest):
     try:

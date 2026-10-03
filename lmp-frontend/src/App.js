@@ -7,9 +7,9 @@ import './App.css';
 
 function App() {
   const [report, setReport] = useState('');
-  const [displayReport, setDisplayReport] = useState(''); // 💡 번역된 내용을 화면에 뿌려줄 분리된 상태
+  const [displayReport, setDisplayReport] = useState(''); // 번역된 내용을 화면에 뿌려줄 분리된 상태
   const [loading, setLoading] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false); // 💡 번역 로딩 상태
+  const [isTranslating, setIsTranslating] = useState(false); // 번역 로딩 상태
   
   const [sensorData, setSensorData] = useState('모든 설비 정상 작동 중 (CM-100 온도 45℃)');
   const [reportStatus, setReportStatus] = useState('none');
@@ -177,7 +177,7 @@ function App() {
       return;
     }
     
-    alert("🔍 [Vision AI] 업로드된 조치 사진을 분석 중입니다...\n(백엔드로 사진을 전송하고 있습니다.)");
+    alert("[Vision AI] 업로드된 조치 사진을 분석 중입니다...\n(백엔드로 사진을 전송하고 있습니다.)");
     
     const formData = new FormData();
     formData.append("file", uploadImage);
@@ -242,12 +242,12 @@ function App() {
   return (
     <div className="App" style={{ display: 'flex', gap: '30px', padding: '40px', fontFamily: '"Pretendard", sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
       
-      {/* 🗄 좌측 사이드바 */}
+      {/* 좌측 사이드바 */}
       <div style={{ width: '30%', backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e1e4e8', height: 'fit-content' }}>
         
-        {/* 💡 [신규] 예지 보전 꺾은선 차트 */}
+        {/* 예지 보전 꺾은선 차트 */}
         <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-          📈 CM-100 모터 온도 추이 (예지보전)
+           CM-100 모터 온도 추이 (예지보전)
         </h3>
         <div style={{ height: '200px', marginBottom: '30px' }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -262,7 +262,7 @@ function App() {
         </div>
 
         <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '18px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-          📊 설비별 위험 감지 통계
+           설비별 위험 감지 통계
         </h3>
         <div style={{ height: '200px', marginBottom: '30px' }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -275,7 +275,7 @@ function App() {
           </ResponsiveContainer>
         </div>
         
-        <h3 style={{ color: '#2c3e50', fontSize: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>🗄️ 최근 조치 이력</h3>
+        <h3 style={{ color: '#2c3e50', fontSize: '16px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}> 최근 조치 이력</h3>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {history.slice(0,3).map((item) => (
             <li key={item.id} style={{ backgroundColor: '#ffffff', padding: '15px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #edf2f7', fontSize:'13px' }}>
@@ -286,14 +286,14 @@ function App() {
         </ul>
       </div>
 
-      {/* 🖥️ 우측 메인 대시보드 */}
+      {/* 우측 메인 대시보드 */}
       <div style={{ width: '70%' }}>
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ color: '#2c3e50', fontSize: '32px', marginBottom: '10px' }}>L.M.P 멀티 에이전트 시스템</h1>
           <p style={{ color: '#7f8c8d', fontSize: '16px' }}>현장 안전(L.AX) · 설비 진단(M.AX) · 보고서 작성(P.AX)</p>
         </div>
 
-        {/* 📡 실시간 센서 수신반 */}
+        {/* 실시간 센서 수신반 */}
         <div style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '10px', border: '1px solid #dee2e6', marginBottom: '30px' }}>
           <h3 style={{ marginTop: '0', color: '#495057', fontSize: '16px', display: 'flex', justifyContent: 'space-between' }}>
             <span>📡 실시간 현장 IoT 센서 수신반</span>
@@ -316,7 +316,7 @@ function App() {
         
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <button onClick={generateReport} disabled={loading || !isErrorState || isTranslating} style={{ padding: '16px 32px', fontSize: '18px', fontWeight: 'bold', backgroundColor: (loading || !isErrorState || isTranslating) ? '#bdc3c7' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: (loading || !isErrorState || isTranslating) ? 'not-allowed' : 'pointer', width: '100%' }}>
-            {loading ? '에이전트들이 현장 매뉴얼을 탐색 중입니다... 🤖' : '일일 작업 보고서 자동 생성 (진단 가이드)'}
+            {loading ? '에이전트들이 현장 매뉴얼을 탐색 중입니다...' : '일일 작업 보고서 자동 생성 (진단 가이드)'}
           </button>
         </div>
 
@@ -328,7 +328,7 @@ function App() {
               {reportStatus === 'completed' ? '✅ 최종 조치 및 안전 검증 완료' : '⚠️ AI 진단 완료 (현장 조치 대기 중)'}
             </div>
             
-            {/* 💡 [신규] 외국인 근로자 다국어 번역 지원 국기 버튼 */}
+            {/* 외국인 근로자 다국어 번역 지원 국기 버튼 */}
             <div style={{ position: 'absolute', top: '15px', right: '130px', display: 'flex', gap: '5px' }}>
               <button onClick={() => setDisplayReport(report)} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="한국어 원본">🇰🇷</button>
               <button onClick={() => handleTranslate('영어')} style={{ cursor: 'pointer', padding: '5px 10px', border: '1px solid #cbd5e0', borderRadius: '4px', backgroundColor: 'white' }} title="English">🇺🇸</button>
@@ -340,10 +340,10 @@ function App() {
               📄 PDF로 저장
             </button>
             
-            {/* 💡 번역 중일 때 로딩 텍스트 표시 */}
+            {/* 번역 중일 때 로딩 텍스트 표시 */}
             {isTranslating ? (
               <div style={{ textAlign: 'center', padding: '50px 0', color: '#718096', fontWeight: 'bold' }}>
-                🌍 AI가 다국어 번역을 진행 중입니다... 잠시만 기다려주세요.
+                 AI가 다국어 번역을 진행 중입니다... 잠시만 기다려주세요.
               </div>
             ) : (
               <ReactMarkdown components={{ h1: ({node, ...props}) => <h1 style={{ borderBottom: '2px solid #eaecef', paddingBottom: '10px', color: '#1a202c', marginTop: '10px' }} {...props} />, h3: ({node, ...props}) => <h3 style={{ color: '#2b6cb0', marginTop: '30px' }} {...props} />, strong: ({node, ...props}) => <strong style={{ color: '#e53e3e', backgroundColor: '#fff5f5', padding: '0 4px', borderRadius: '4px' }} {...props} /> }}>
@@ -358,7 +358,7 @@ function App() {
                 
                 <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center', marginTop: '10px' }}>
                   <button onClick={handleWorkerApproval} style={{ padding: '14px 28px', fontSize: '16px', fontWeight: 'bold', backgroundColor: '#319795', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                    👷‍♂️ 사진 기반 조치 승인
+                     사진 기반 조치 승인
                   </button>
                   <button onClick={handleVoiceApproval} style={{ padding: '14px 20px', fontSize: '16px', fontWeight: 'bold', backgroundColor: isListening ? '#e53e3e' : '#2b6cb0', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                     {isListening ? '🎙️ 듣는 중...' : '🎙️ 음성으로 승인 (단독)'}

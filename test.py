@@ -20,8 +20,8 @@ headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 
 if response.status_code == 200:
-    print("✅ 성공! API 키와 모델이 정상적으로 작동합니다.")
-    print("🤖 Gemini 응답:", response.json()['candidates'][0]['content']['parts'][0]['text'])
+    print("성공. API 키와 모델이 정상적으로 작동합니다.")
+    print("Gemini 응답:", response.json()['candidates'][0]['content']['parts'][0]['text'])
 else:
-    print("❌ 에러 발생 (상태 코드):", response.status_code)
+    print("에러 발생 (상태 코드):", response.status_code)
     print("상세 내용:", response.text)
